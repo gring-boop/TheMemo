@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#f7f3ee">
+<title>나의 메모장</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='80' font-size='80'>📝</text></svg>">
+<style>
+  :root {
+    --bg: #f7f3ee;
+    --card: #ffffff;
+    --ink: #2d2a26;
+    --sub: #8a837a;
+    --accent: #d97757;
+    --accent-soft: #fbe9e2;
+    --border: #e8e1d8;
+    --shadow: 0 1px 3px rgba(45,42,38,.08), 0 4px 12px rgba(45,42,38,.05);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    min-height: 100vh;
+  }
+  .wrap { max-width: 640px; margin: 0 auto; padding: 20px 16px 100px; }
+  header {
+    display: flex; align-items: baseline; justify-content: space-between;
+    margin-bottom: 20px;
+  }
+  h1 { font-size: 22px; font-weight: 700; }
+  #status { font-size: 12px; color: var(--sub); }
+  #status.online::before { content: "● "; color: #6aa06a; }
+  #status.offline::before { content: "● "; color: #c0392b; }
+
+  /* 새 메모 입력 */
+  .composer {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 14px; box-shadow: var(--shadow);
+    padding: 14px; margin-bottom: 24px;
+  }
+  .composer textarea {
+    width: 100%; border: none; outline: none; resize: none;
+    font: inherit; font-size: 16px; line-height: 1.55;
+    min-height: 44px; background: transparent; color: var(--ink);
+  }
+  .composer textarea::placeholder { color: var(--sub); }
+  .composer .actions { display: flex; justify-content: flex-end; margin-top: 8px; }
+  button.primary {
+    background: var(--accent); color: #fff; border: none;
+    border-radius: 10px; padding: 9px 18px; font-size: 15px; font-weight: 600;
+    cursor: pointer; transition: opacity .15s;
+  }
+  button.primary:disabled { opacity: .4; cursor: default; }
+  button.primary:active { opacity: .8; }
+
+  /* 메모 카드 */
+  .note {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 14px; box-shadow: var(--shadow);
+    padding: 14px 14px 10px; margin-bottom: 12px;
+    animation: pop .18s ease;
+  }
+  @keyframes pop { from { opacity: 0; transform: translateY(4px); } }
+  .note .body {
+    white-space: pre-wrap; word-break: break-word;
+    font-size: 16px; line-height: 1.55;
+  }
+  .note textarea.edit {
+    width: 100%; border: 1px solid var(--accent); border-radius: 8px;
+    font: inherit; font-size: 16px; line-height: 1.55; padding: 8px;
+    outline: none; resize: vertical; min-height: 60px; color: var(--ink);
+  }
+  .note .meta {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--border);
+  }
+  .note .time { font-size: 12px; color: var(--sub); }
+  .note .btns { display: flex; gap: 4px; }
+  .note .btns button {
+    background: none; border: none; cursor: pointer;
+    font-size: 13px; color: var(--sub); padding: 6px 8px; border-radius: 8px;
+  }
+  .note .btns button:hover { background: var(--accent-soft); color: var(--accent); }
+  .empty { text-align: center; color: var(--sub); padding: 48px 0; font-size: 15px; }
+
+  /* 설정 안내 오버레이 */
+  #setupOverlay {
+    position: fixed; inset: 0; background: var(--bg);
+    display: flex; align-items: center; justify-content: center; padding: 24px;
+  }
+  #setupOverlay .box {
+    max-width: 460px; background: var(--card); border: 1px solid var(--border);
+    border-radius: 16px; box-shadow: var(--shadow); padding: 28px;
+    line-height: 1.7; font-size: 15px;
+  }
+  #setupOverlay h2 { font-size: 18px; margin-bottom: 12px; }
+  #setupOverlay code {
+    background: var(--accent-soft); border-radius: 4px; padding: 1px 5px;
+    font-size: 13px;
+  }
+</style>
+</head>
+<body>
+
+<div id="setupOverlay" hidden>
+  <div class="box">
+    <h2>📝 설정이 필요해요</h2>
+    <p>이 파일을 텍스트 편집기로 열어 <code>firebaseConfig</code> 부분에
+    본인의 Firebase 설정값을 붙여넣어 주세요.
+    자세한 방법은 함께 받은 <b>설정 가이드</b>를 참고하세요.</p>
+  </div>
+</div>
+
+<div class="wrap">
+  <header>
+    <h1>📝 나의 메모장</h1>
+    <span id="status">연결 중…</span>
+  </header>
+
+  <div class="composer">
+    <textarea id="newNote" placeholder="메모를 입력하세요…" rows="2"></textarea>
+    <div class="actions">
+      <button class="primary" id="addBtn" disabled>저장</button>
+    </div>
+  </div>
+
+  <div id="list"><div class="empty">아직 메모가 없어요</div></div>
+</div>
+
+<script type="module">
+/* ==========================================================
+   ▼▼▼ 여기에 본인의 Firebase 설정값을 붙여넣으세요 ▼▼▼
+   (Firebase 콘솔 → 프로젝트 설정 → 내 앱 → SDK 설정 및 구성)
+   ========================================================== */
+const firebaseConfig = {
+  apiKey: "AIzaSyCkIFOFvN7iNqqGdbOphem4991uwYq5Zfw",
+  authDomain: "thememo-abaf9.firebaseapp.com",
+  databaseURL: "https://thememo-abaf9-default-rtdb.firebaseio.com",
+  projectId: "thememo-abaf9",
+  storageBucket: "thememo-abaf9.firebasestorage.app",
+  messagingSenderId: "660566814600",
+  appId: "1:660566814600:web:dd9509820bd901447a943d"
+};
+/* ========================================================== */
+
+if (firebaseConfig.apiKey.includes("여기에")) {
+  document.getElementById("setupOverlay").hidden = false;
+} else {
+  main();
+}
+
+async function main() {
+  const { initializeApp } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js");
+  const { getAuth, signInAnonymously, onAuthStateChanged } =
+    await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js");
+  const { getDatabase, ref, push, update, remove, onValue, serverTimestamp } =
+    await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js");
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getDatabase(app);
+  const statusEl = document.getElementById("status");
+  const listEl = document.getElementById("list");
+  const input = document.getElementById("newNote");
+  const addBtn = document.getElementById("addBtn");
+
+  try { await signInAnonymously(auth); }
+  catch (e) {
+    statusEl.textContent = "로그인 실패: Firebase에서 익명 로그인을 켜주세요";
+    statusEl.className = "offline";
+    return;
+  }
+
+  onAuthStateChanged(auth, user => {
+    if (!user) return;
+    const notesRef = ref(db, "notes");
+
+    // 실시간 구독
+    onValue(notesRef,
+      snap => {
+        statusEl.textContent = "동기화됨";
+        statusEl.className = "online";
+        const items = [];
+        snap.forEach(child => {
+          items.push({ id: child.key, ...child.val() });
+        });
+        items.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+        render(items);
+      },
+      err => {
+        statusEl.textContent = "연결 오류";
+        statusEl.className = "offline";
+        console.error(err);
+      });
+
+    // 저장
+    addBtn.onclick = async () => {
+      const text = input.value.trim();
+      if (!text) return;
+      input.value = ""; addBtn.disabled = true; autoGrow();
+      await push(notesRef, { text, updatedAt: serverTimestamp() });
+    };
+
+    input.addEventListener("input", () => {
+      addBtn.disabled = !input.value.trim();
+      autoGrow();
+    });
+    input.addEventListener("keydown", e => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "Enter") addBtn.click();
+    });
+    function autoGrow() {
+      input.style.height = "auto";
+      input.style.height = input.scrollHeight + "px";
+    }
+
+    function fmt(ts) {
+      if (!ts) return "";
+      const d = new Date(ts);
+      return d.toLocaleString("ko-KR", {
+        month: "short", day: "numeric", hour: "2-digit", minute: "2-digit"
+      });
+    }
+
+    function render(items) {
+      listEl.innerHTML = "";
+      if (!items.length) {
+        listEl.innerHTML = '<div class="empty">아직 메모가 없어요</div>';
+        return;
+      }
+      for (const data of items) {
+        const card = document.createElement("div");
+        card.className = "note";
+
+        const body = document.createElement("div");
+        body.className = "body";
+        body.textContent = data.text;
+
+        const meta = document.createElement("div");
+        meta.className = "meta";
+        const time = document.createElement("span");
+        time.className = "time";
+        time.textContent = fmt(data.updatedAt);
+        const btns = document.createElement("div");
+        btns.className = "btns";
+
+        const editBtn = document.createElement("button");
+        editBtn.textContent = "수정";
+        editBtn.onclick = () => {
+          const ta = document.createElement("textarea");
+          ta.className = "edit";
+          ta.value = data.text;
+          card.replaceChild(ta, card.firstChild);
+          ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length);
+          editBtn.textContent = "완료";
+          editBtn.onclick = async () => {
+            const t = ta.value.trim();
+            if (t && t !== data.text)
+              await update(ref(db, "notes/" + data.id), { text: t, updatedAt: serverTimestamp() });
+            else card.replaceChild(body, ta), resetEdit();
+          };
+          function resetEdit(){ editBtn.textContent = "수정"; }
+        };
+
+        const delBtn = document.createElement("button");
+        delBtn.textContent = "삭제";
+        delBtn.onclick = async () => {
+          if (confirm("이 메모를 삭제할까요?"))
+            await remove(ref(db, "notes/" + data.id));
+        };
+
+        btns.append(editBtn, delBtn);
+        meta.append(time, btns);
+        card.append(body, meta);
+        listEl.append(card);
+      }
+    }
+  });
+}
+</script>
+</body>
+</html>
