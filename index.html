@@ -2,140 +2,333 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="theme-color" content="#f7f3ee">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#f7f3ee" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#1c1b19" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="메모장">
+<meta name="format-detection" content="telephone=no">
 <title>나의 메모장</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='80' font-size='80'>📝</text></svg>">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=Noto+Serif+KR:wght@400;600&family=Noto+Sans+KR:wght@400;500;700&family=Nanum+Myeongjo:wght@400;700&display=swap">
 <style>
   :root {
     --bg: #f7f3ee;
-    --card: #ffffff;
+    --card: #fffdfa;
     --ink: #2d2a26;
     --sub: #8a837a;
+    --faint: #b5ada2;
     --accent: #d97757;
     --accent-soft: #fbe9e2;
     --border: #e8e1d8;
-    --shadow: 0 1px 3px rgba(45,42,38,.08), 0 4px 12px rgba(45,42,38,.05);
+    --line: #efe9e0;
+    --danger: #c0392b;
+    --shadow: 0 1px 2px rgba(45,42,38,.05), 0 6px 18px rgba(45,42,38,.06);
+    --sheet: rgba(247,243,238,.86);
+    --safe-t: env(safe-area-inset-top, 0px);
+    --safe-b: env(safe-area-inset-bottom, 0px);
+    --serif: "Gowun Batang", "Noto Serif KR", serif;
+    --sans: "Noto Sans KR", -apple-system, "Apple SD Gothic Neo", sans-serif;
+    --myeongjo: "Nanum Myeongjo", "Noto Serif KR", serif;
+    --ui: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
   }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html[data-theme="dark"] {
+    --bg: #1c1b19;
+    --card: #262421;
+    --ink: #e8e3db;
+    --sub: #96908a;
+    --faint: #6b6560;
+    --accent: #e08b6b;
+    --accent-soft: #3a2b24;
+    --border: #35322e;
+    --line: #302d2a;
+    --danger: #e07a6d;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 6px 18px rgba(0,0,0,.25);
+    --sheet: rgba(28,27,25,.86);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; overscroll-behavior-y: none; }
   body {
-    font-family: "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", sans-serif;
-    background: var(--bg);
-    color: var(--ink);
-    min-height: 100vh;
+    font-family: var(--ui);
+    background: var(--bg); color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+    transition: background .25s, color .25s;
   }
-  .wrap { max-width: 640px; margin: 0 auto; padding: 20px 16px 100px; }
-  header {
-    display: flex; align-items: baseline; justify-content: space-between;
-    margin-bottom: 20px;
-  }
-  h1 { font-size: 22px; font-weight: 700; }
-  #status { font-size: 12px; color: var(--sub); }
-  #status.online::before { content: "● "; color: #6aa06a; }
-  #status.offline::before { content: "● "; color: #c0392b; }
+  button, input, textarea { font-family: inherit; color: inherit; }
+  button { background: none; border: none; cursor: pointer; }
+  .hide { display: none !important; }
 
-  /* 새 메모 입력 */
-  .composer {
+  /* ── 화면 전환 ── */
+  .screen {
+    position: fixed; inset: 0; display: flex; flex-direction: column;
+    background: var(--bg); transition: transform .28s cubic-bezier(.32,.72,0,1), opacity .2s;
+  }
+  .screen.push { transform: translateX(100%); opacity: .6; pointer-events: none; }
+
+  /* ── 상단 바 ── */
+  .bar {
+    display: flex; align-items: center; gap: 4px;
+    padding: calc(var(--safe-t) + 10px) 8px 10px;
+    background: var(--sheet); backdrop-filter: saturate(180%) blur(14px);
+    border-bottom: 1px solid var(--line); flex-shrink: 0;
+    position: relative; z-index: 5;
+  }
+  .bar .icb {
+    width: 38px; height: 38px; border-radius: 10px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 19px; color: var(--sub); transition: background .15s, color .15s;
+  }
+  .bar .icb:hover { background: var(--accent-soft); color: var(--accent); }
+  .bar .icb:active { transform: scale(.94); }
+  .bar .ttl {
+    flex: 1; min-width: 0; font-size: 17px; font-weight: 700; padding: 0 4px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .bar .ttl.center { text-align: center; font-size: 15px; font-weight: 500; }
+  .bar .sub { font-size: 11.5px; color: var(--faint); font-weight: 400; }
+
+  /* ── 스크롤 영역 ── */
+  .scroll {
+    flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch;
+    padding: 8px 0 calc(var(--safe-b) + 90px);
+  }
+  .inner { max-width: 720px; margin: 0 auto; padding: 0 16px; }
+
+  /* ── 목록 행 ── */
+  .row {
+    display: flex; align-items: center; gap: 12px;
     background: var(--card); border: 1px solid var(--border);
-    border-radius: 14px; box-shadow: var(--shadow);
-    padding: 14px; margin-bottom: 24px;
+    border-radius: 14px; padding: 14px 15px; margin-bottom: 9px;
+    box-shadow: var(--shadow); cursor: pointer;
+    transition: transform .12s, border-color .15s;
+    animation: pop .2s ease;
   }
-  .composer textarea {
-    width: 100%; border: none; outline: none; resize: none;
-    font: inherit; font-size: 16px; line-height: 1.55;
-    min-height: 44px; background: transparent; color: var(--ink);
+  .row:active { transform: scale(.985); }
+  .row:hover { border-color: var(--accent); }
+  @keyframes pop { from { opacity: 0; transform: translateY(5px); } }
+  .row .em { font-size: 22px; flex-shrink: 0; width: 30px; text-align: center; }
+  .row .mid { flex: 1; min-width: 0; }
+  .row .nm { font-size: 15.5px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .row .pv {
+    font-size: 12.5px; color: var(--sub); margin-top: 3px; line-height: 1.45;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
   }
-  .composer textarea::placeholder { color: var(--sub); }
-  .composer .actions { display: flex; justify-content: flex-end; margin-top: 8px; }
-  button.primary {
-    background: var(--accent); color: #fff; border: none;
-    border-radius: 10px; padding: 9px 18px; font-size: 15px; font-weight: 600;
-    cursor: pointer; transition: opacity .15s;
-  }
-  button.primary:disabled { opacity: .4; cursor: default; }
-  button.primary:active { opacity: .8; }
+  .row .cnt { font-size: 12px; color: var(--faint); flex-shrink: 0; font-variant-numeric: tabular-nums; }
+  .row .arw { color: var(--faint); font-size: 15px; flex-shrink: 0; }
+  .row.dragging { opacity: .45; }
+  .row.dragover { border-color: var(--accent); border-style: dashed; }
 
-  /* 메모 카드 */
-  .note {
-    background: var(--card); border: 1px solid var(--border);
-    border-radius: 14px; box-shadow: var(--shadow);
-    padding: 14px 14px 10px; margin-bottom: 12px;
-    animation: pop .18s ease;
-  }
-  @keyframes pop { from { opacity: 0; transform: translateY(4px); } }
-  .note .body {
-    white-space: pre-wrap; word-break: break-word;
-    font-size: 16px; line-height: 1.55;
-  }
-  .note textarea.edit {
-    width: 100%; border: 1px solid var(--accent); border-radius: 8px;
-    font: inherit; font-size: 16px; line-height: 1.55; padding: 8px;
-    outline: none; resize: vertical; min-height: 60px; color: var(--ink);
-  }
-  .note .meta {
-    display: flex; align-items: center; justify-content: space-between;
-    margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--border);
-  }
-  .note .time { font-size: 12px; color: var(--sub); }
-  .note .btns { display: flex; gap: 4px; }
-  .note .btns button {
-    background: none; border: none; cursor: pointer;
-    font-size: 13px; color: var(--sub); padding: 6px 8px; border-radius: 8px;
-  }
-  .note .btns button:hover { background: var(--accent-soft); color: var(--accent); }
-  .empty { text-align: center; color: var(--sub); padding: 48px 0; font-size: 15px; }
+  .empty { text-align: center; color: var(--faint); padding: 64px 20px; font-size: 14.5px; line-height: 1.9; }
+  .empty .big { font-size: 34px; display: block; margin-bottom: 10px; opacity: .5; }
 
-  /* 설정 안내 오버레이 */
-  #setupOverlay {
-    position: fixed; inset: 0; background: var(--bg);
-    display: flex; align-items: center; justify-content: center; padding: 24px;
+  /* ── FAB ── */
+  .fab {
+    position: fixed; right: 20px; bottom: calc(var(--safe-b) + 22px);
+    width: 56px; height: 56px; border-radius: 50%; z-index: 20;
+    background: var(--accent); color: #fff; font-size: 26px; font-weight: 300;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 4px 16px rgba(217,119,87,.4); transition: transform .15s;
   }
-  #setupOverlay .box {
-    max-width: 460px; background: var(--card); border: 1px solid var(--border);
-    border-radius: 16px; box-shadow: var(--shadow); padding: 28px;
-    line-height: 1.7; font-size: 15px;
+  .fab:active { transform: scale(.9); }
+
+  /* ── 에디터 ── */
+  #edScroll { padding: 0; }
+  .edwrap { max-width: 720px; margin: 0 auto; padding: 20px 22px calc(var(--safe-b) + 120px); }
+  #edTitle {
+    width: 100%; border: none; outline: none; background: transparent;
+    font-family: var(--serif); font-size: 24px; font-weight: 700; line-height: 1.4;
+    margin-bottom: 6px; resize: none; overflow: hidden;
   }
-  #setupOverlay h2 { font-size: 18px; margin-bottom: 12px; }
-  #setupOverlay code {
-    background: var(--accent-soft); border-radius: 4px; padding: 1px 5px;
-    font-size: 13px;
+  #edTitle::placeholder { color: var(--faint); font-weight: 400; }
+  #edDate { font-size: 12px; color: var(--faint); margin-bottom: 16px; }
+  #edBody {
+    width: 100%; border: none; outline: none; background: transparent;
+    font-family: var(--serif); font-size: 17px; line-height: 2.0; letter-spacing: .01em;
+    resize: none; overflow: hidden; min-height: 50vh; white-space: pre-wrap;
+  }
+  #edBody::placeholder { color: var(--faint); }
+  #edBody.mono { font-family: var(--sans); }
+  #edBody.myeongjo { font-family: var(--myeongjo); }
+
+  .edbot {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 15;
+    padding: 9px 16px calc(var(--safe-b) + 9px);
+    background: var(--sheet); backdrop-filter: saturate(180%) blur(14px);
+    border-top: 1px solid var(--line);
+    display: flex; align-items: center; gap: 14px;
+    font-size: 12px; color: var(--faint);
+  }
+  .edbot .sp { flex: 1; }
+  .edbot .sv { color: var(--sub); }
+  .edbot .sv.on { color: var(--accent); }
+
+  /* ── 시트/모달 ── */
+  .mask {
+    position: fixed; inset: 0; z-index: 60; background: rgba(30,26,22,.42);
+    display: flex; align-items: flex-end; justify-content: center;
+    animation: fade .18s ease;
+  }
+  @keyframes fade { from { opacity: 0; } }
+  .sheet {
+    width: 100%; max-width: 460px; background: var(--card);
+    border-radius: 18px 18px 0 0; padding: 8px 0 calc(var(--safe-b) + 8px);
+    animation: up .26s cubic-bezier(.32,.72,0,1); max-height: 82vh; overflow-y: auto;
+  }
+  @keyframes up { from { transform: translateY(100%); } }
+  .sheet .grip { width: 36px; height: 4px; border-radius: 2px; background: var(--border); margin: 6px auto 10px; }
+  .sheet .sh { font-size: 12px; color: var(--faint); padding: 8px 22px 6px; }
+  .sheet .it {
+    display: flex; align-items: center; gap: 13px; width: 100%;
+    padding: 14px 22px; font-size: 15.5px; text-align: left;
+  }
+  .sheet .it:active { background: var(--accent-soft); }
+  .sheet .it .ic { width: 22px; font-size: 17px; text-align: center; color: var(--sub); }
+  .sheet .it.dz { color: var(--danger); }
+  .sheet .it.dz .ic { color: var(--danger); }
+  .sheet .it .chk { margin-left: auto; color: var(--accent); font-size: 15px; }
+  .sheet .div { height: 1px; background: var(--line); margin: 6px 0; }
+
+  .modal {
+    width: calc(100% - 48px); max-width: 380px; background: var(--card);
+    border-radius: 16px; padding: 22px; margin: auto;
+    box-shadow: 0 12px 40px rgba(0,0,0,.2); animation: zoom .2s ease;
+  }
+  @keyframes zoom { from { transform: scale(.94); opacity: 0; } }
+  .mask.mid { align-items: center; padding: 24px; }
+  .modal h3 { font-size: 16.5px; font-weight: 700; margin-bottom: 6px; }
+  .modal p { font-size: 13.5px; color: var(--sub); line-height: 1.65; margin-bottom: 16px; }
+  .modal input, .modal textarea {
+    width: 100%; border: 1px solid var(--border); border-radius: 10px;
+    padding: 11px 13px; font-size: 15.5px; background: var(--bg);
+    outline: none; margin-bottom: 14px;
+  }
+  .modal input:focus { border-color: var(--accent); }
+  .modal .btns { display: flex; gap: 8px; justify-content: flex-end; }
+  .modal .btns button {
+    padding: 10px 18px; border-radius: 10px; font-size: 14.5px; font-weight: 500;
+  }
+  .modal .btns .g { color: var(--sub); }
+  .modal .btns .p { background: var(--accent); color: #fff; }
+  .modal .btns .d { background: var(--danger); color: #fff; }
+  .emgrid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px; margin-bottom: 14px; }
+  .emgrid button { font-size: 21px; padding: 6px 0; border-radius: 8px; }
+  .emgrid button.on { background: var(--accent-soft); }
+
+  /* ── 검색 ── */
+  #srchIn {
+    flex: 1; border: none; outline: none; background: transparent;
+    font-size: 16px; padding: 8px 4px;
+  }
+
+  /* ── 상태 배지 ── */
+  #status {
+    font-size: 11px; color: var(--faint); padding: 0 8px; flex-shrink: 0;
+    display: flex; align-items: center; gap: 4px;
+  }
+  #status .d { width: 6px; height: 6px; border-radius: 50%; background: var(--faint); }
+  #status.online .d { background: #6aa06a; }
+  #status.offline .d { background: var(--danger); }
+
+  /* ── 토스트 ── */
+  #toast {
+    position: fixed; left: 50%; bottom: calc(var(--safe-b) + 88px); transform: translateX(-50%);
+    background: var(--ink); color: var(--bg); font-size: 13.5px;
+    padding: 11px 20px; border-radius: 22px; z-index: 90; box-shadow: var(--shadow);
+    animation: tin .2s ease; max-width: 82vw; text-align: center;
+  }
+  @keyframes tin { from { opacity: 0; transform: translate(-50%, 8px); } }
+  #toast button { color: var(--accent); font-weight: 700; margin-left: 12px; font-size: 13.5px; }
+
+  /* ── 설정 오버레이 ── */
+  #setup[hidden] { display: none; }
+  #setup {
+    position: fixed; inset: 0; z-index: 200; background: var(--bg);
+    display: flex; align-items: center; justify-content: center; padding: 26px;
+  }
+  #setup .box {
+    max-width: 440px; background: var(--card); border: 1px solid var(--border);
+    border-radius: 16px; padding: 28px; line-height: 1.75; font-size: 14.5px;
+  }
+  #setup h2 { font-size: 17px; margin-bottom: 12px; }
+  #setup code { background: var(--accent-soft); border-radius: 4px; padding: 1px 5px; font-size: 12.5px; }
+
+  @media (min-width: 768px) {
+    .fab { right: calc(50% - 360px + 20px); }
   }
 </style>
 </head>
 <body>
 
-<div id="setupOverlay" hidden>
+<div id="setup" hidden>
   <div class="box">
     <h2>📝 설정이 필요해요</h2>
-    <p>이 파일을 텍스트 편집기로 열어 <code>firebaseConfig</code> 부분에
-    본인의 Firebase 설정값을 붙여넣어 주세요.
-    자세한 방법은 함께 받은 <b>설정 가이드</b>를 참고하세요.</p>
+    <p>이 파일을 텍스트 편집기로 열어 <code>firebaseConfig</code> 부분에 본인의 Firebase 설정값을 붙여넣어 주세요.</p>
   </div>
 </div>
 
-<div class="wrap">
-  <header>
-    <h1>📝 나의 메모장</h1>
-    <span id="status">연결 중…</span>
-  </header>
+<!-- 이야기 목록 -->
+<div class="screen" id="scStories">
+  <div class="bar">
+    <div class="ttl">나의 메모장 <span class="sub" id="stCount"></span></div>
+    <div id="status"><span class="d"></span><span id="stTx">연결 중</span></div>
+    <button class="icb" id="btnSearch" aria-label="검색">⌕</button>
+    <button class="icb" id="btnMenu" aria-label="설정">⚙</button>
+  </div>
+  <div class="scroll"><div class="inner" id="stList"></div></div>
+  <button class="fab" id="fabStory" aria-label="새 이야기">+</button>
+</div>
 
-  <div class="composer">
-    <textarea id="newNote" placeholder="메모를 입력하세요…" rows="2"></textarea>
-    <div class="actions">
-      <button class="primary" id="addBtn" disabled>저장</button>
+<!-- 글 목록 -->
+<div class="screen push" id="scNotes">
+  <div class="bar">
+    <button class="icb" id="btnBack1" aria-label="뒤로">‹</button>
+    <div class="ttl" id="ntTitle">이야기</div>
+    <button class="icb" id="btnStoryMenu" aria-label="더보기">⋯</button>
+  </div>
+  <div class="scroll"><div class="inner" id="ntList"></div></div>
+  <button class="fab" id="fabNote" aria-label="새 글">+</button>
+</div>
+
+<!-- 에디터 -->
+<div class="screen push" id="scEdit">
+  <div class="bar">
+    <button class="icb" id="btnBack2" aria-label="뒤로">‹</button>
+    <div class="ttl center" id="edCrumb"></div>
+    <button class="icb" id="btnNoteMenu" aria-label="더보기">⋯</button>
+  </div>
+  <div class="scroll" id="edScroll">
+    <div class="edwrap">
+      <textarea id="edTitle" placeholder="제목" rows="1"></textarea>
+      <div id="edDate"></div>
+      <textarea id="edBody" placeholder="이야기를 시작해 보세요…" rows="1"></textarea>
     </div>
   </div>
+  <div class="edbot">
+    <span id="edCount">0자</span>
+    <span class="sp"></span>
+    <span class="sv" id="edSaved"></span>
+  </div>
+</div>
 
-  <div id="list"><div class="empty">아직 메모가 없어요</div></div>
+<!-- 검색 -->
+<div class="screen push" id="scSearch">
+  <div class="bar">
+    <button class="icb" id="btnBack3" aria-label="뒤로">‹</button>
+    <input id="srchIn" placeholder="검색…" autocomplete="off">
+  </div>
+  <div class="scroll"><div class="inner" id="srList"></div></div>
 </div>
 
 <script type="module">
 /* ==========================================================
-   ▼▼▼ 여기에 본인의 Firebase 설정값을 붙여넣으세요 ▼▼▼
-   (Firebase 콘솔 → 프로젝트 설정 → 내 앱 → SDK 설정 및 구성)
+   ▼▼▼ Firebase 설정값 ▼▼▼
    ========================================================== */
 const firebaseConfig = {
-  apiKey: "AIzaSyCkIFOFvN7iNqqGdbOphem4991uwYq5Zfw",
+  apiKey: "AIzaSyCklFOFvN7iNqqGdbOphem4991uwYq5Zfw",
   authDomain: "thememo-abaf9.firebaseapp.com",
   databaseURL: "https://thememo-abaf9-default-rtdb.firebaseio.com",
   projectId: "thememo-abaf9",
@@ -145,138 +338,625 @@ const firebaseConfig = {
 };
 /* ========================================================== */
 
-if (firebaseConfig.apiKey.includes("여기에")) {
-  document.getElementById("setupOverlay").hidden = false;
+if (String(firebaseConfig.apiKey).includes("여기에")) {
+  document.getElementById("setup").hidden = false;
 } else {
-  main();
+  main().catch(e => { console.error(e); toast("오류: " + (e.code || e.message)); });
 }
 
+/* ── 전역 상태 ── */
+const $ = id => document.getElementById(id);
+const EMOJIS = ["📕","📗","📘","📙","📓","📔","📒","📝","✏️","🖋️","🌙","☀️","🌿","🌸","🍀","🌊","⭐","✨","🔥","💧","🐾","🐈","🐇","🦋","☕","🍰","🎬","🎧","💭","💌","🗝️","🧵"];
+const FONTS = [
+  { id: "serif", label: "고운 바탕", cls: "" },
+  { id: "myeongjo", label: "나눔 명조", cls: "myeongjo" },
+  { id: "sans", label: "노토 고딕", cls: "mono" },
+];
+const SIZES = [15, 16, 17, 18, 20, 22];
+
+let db, refFn, pushFn, updateFn, removeFn, onValueFn, stampFn;
+let stories = [], notes = {}, curStory = null, curNote = null;
+let prefs = loadPrefs();
+let saveTimer = null, pendingPatch = null, lastDeleted = null;
+
+function loadPrefs() {
+  try {
+    const p = JSON.parse(localStorage.getItem("memo-prefs")) || {};
+    return { theme: p.theme || "auto", font: p.font || "serif", size: p.size || 17 };
+  } catch { return { theme: "auto", font: "serif", size: 17 }; }
+}
+function savePrefs() { try { localStorage.setItem("memo-prefs", JSON.stringify(prefs)); } catch {} }
+
+function applyTheme() {
+  const dark = prefs.theme === "dark" || (prefs.theme === "auto" && matchMedia("(prefers-color-scheme: dark)").matches);
+  document.documentElement.dataset.theme = dark ? "dark" : "light";
+}
+applyTheme();
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { if (prefs.theme === "auto") applyTheme(); });
+
+function applyEditorStyle() {
+  const b = $("edBody");
+  b.className = (FONTS.find(f => f.id === prefs.font) || FONTS[0]).cls;
+  b.style.fontSize = prefs.size + "px";
+  $("edTitle").style.fontSize = Math.round(prefs.size * 1.42) + "px";
+}
+
+/* ── 유틸 ── */
+function esc(s) { return String(s ?? ""); }
+function fmtDate(ts) {
+  if (!ts) return "";
+  const d = new Date(ts), now = new Date();
+  const sameYear = d.getFullYear() === now.getFullYear();
+  const opt = sameYear
+    ? { month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" }
+    : { year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" };
+  return d.toLocaleString("ko-KR", opt);
+}
+function fmtShort(ts) {
+  if (!ts) return "";
+  const d = new Date(ts), now = new Date();
+  const diff = now - d;
+  if (diff < 60000) return "방금";
+  if (diff < 3600000) return Math.floor(diff / 60000) + "분 전";
+  if (d.toDateString() === now.toDateString()) return d.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" });
+  if (d.getFullYear() === now.getFullYear()) return (d.getMonth() + 1) + "월 " + d.getDate() + "일";
+  return d.getFullYear() + ". " + (d.getMonth() + 1) + ". " + d.getDate() + ".";
+}
+function countChars(t) { return [...String(t || "").replace(/\s/g, "")].length; }
+
+let toastTimer = null;
+function toast(msg, actionLabel, actionFn) {
+  const old = $("toast"); if (old) old.remove();
+  clearTimeout(toastTimer);
+  const el = document.createElement("div");
+  el.id = "toast";
+  el.textContent = msg;
+  if (actionLabel) {
+    const b = document.createElement("button");
+    b.textContent = actionLabel;
+    b.onclick = () => { el.remove(); actionFn && actionFn(); };
+    el.appendChild(b);
+  }
+  document.body.appendChild(el);
+  toastTimer = setTimeout(() => el.remove(), actionLabel ? 6000 : 2200);
+}
+
+/* ── 화면 스택 ── */
+const stack = ["scStories"];
+function go(id) {
+  $(id).classList.remove("push");
+  stack.push(id);
+  history.pushState({ d: stack.length }, "");
+}
+function back() {
+  if (stack.length <= 1) return;
+  const top = stack.pop();
+  $(top).classList.add("push");
+  if (top === "scEdit") flushSave(true);
+}
+addEventListener("popstate", () => { if (stack.length > 1) back(); });
+
+/* ── 시트/모달 ── */
+function closeMask() { const m = document.querySelector(".mask"); if (m) m.remove(); }
+function sheet(items) {
+  closeMask();
+  const mask = document.createElement("div");
+  mask.className = "mask";
+  mask.onclick = e => { if (e.target === mask) closeMask(); };
+  const sh = document.createElement("div");
+  sh.className = "sheet";
+  sh.innerHTML = '<div class="grip"></div>';
+  for (const it of items) {
+    if (it.type === "div") { const d = document.createElement("div"); d.className = "div"; sh.appendChild(d); continue; }
+    if (it.type === "head") { const h = document.createElement("div"); h.className = "sh"; h.textContent = it.label; sh.appendChild(h); continue; }
+    const b = document.createElement("button");
+    b.className = "it" + (it.danger ? " dz" : "");
+    b.innerHTML = '<span class="ic"></span><span class="lb"></span>';
+    b.querySelector(".ic").textContent = it.icon || "";
+    b.querySelector(".lb").textContent = it.label;
+    if (it.checked) { const c = document.createElement("span"); c.className = "chk"; c.textContent = "✓"; b.appendChild(c); }
+    b.onclick = () => { closeMask(); it.fn && it.fn(); };
+    sh.appendChild(b);
+  }
+  mask.appendChild(sh);
+  document.body.appendChild(mask);
+}
+function modal(html, setup) {
+  closeMask();
+  const mask = document.createElement("div");
+  mask.className = "mask mid";
+  mask.onclick = e => { if (e.target === mask) closeMask(); };
+  const m = document.createElement("div");
+  m.className = "modal";
+  m.innerHTML = html;
+  mask.appendChild(m);
+  document.body.appendChild(mask);
+  setup && setup(m);
+  return m;
+}
+function confirmBox(title, desc, okLabel, onOk, danger) {
+  modal(
+    '<h3></h3><p></p><div class="btns"><button class="g">취소</button><button class="' + (danger ? "d" : "p") + '"></button></div>',
+    m => {
+      m.querySelector("h3").textContent = title;
+      m.querySelector("p").textContent = desc;
+      const btns = m.querySelectorAll(".btns button");
+      btns[1].textContent = okLabel;
+      btns[0].onclick = closeMask;
+      btns[1].onclick = () => { closeMask(); onOk(); };
+    }
+  );
+}
+
+/* ── Firebase ── */
 async function main() {
   const { initializeApp } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js");
-  const { getAuth, signInAnonymously, onAuthStateChanged } =
-    await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js");
-  const { getDatabase, ref, push, update, remove, onValue, serverTimestamp } =
-    await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js");
+  const { getAuth, signInAnonymously, onAuthStateChanged } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js");
+  const dbm = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js");
+
+  refFn = dbm.ref; pushFn = dbm.push; updateFn = dbm.update; removeFn = dbm.remove;
+  onValueFn = dbm.onValue; stampFn = dbm.serverTimestamp;
 
   const app = initializeApp(firebaseConfig);
   const auth = getAuth(app);
-  const db = getDatabase(app);
-  const statusEl = document.getElementById("status");
-  const listEl = document.getElementById("list");
-  const input = document.getElementById("newNote");
-  const addBtn = document.getElementById("addBtn");
+  db = dbm.getDatabase(app);
 
   try { await signInAnonymously(auth); }
   catch (e) {
-    statusEl.textContent = "로그인 실패: Firebase에서 익명 로그인을 켜주세요";
-    statusEl.className = "offline";
+    setStatus("offline", "로그인 실패: " + (e.code || e.message));
+    console.error(e);
     return;
   }
 
   onAuthStateChanged(auth, user => {
     if (!user) return;
-    const notesRef = ref(db, "notes");
-
-    // 실시간 구독
-    onValue(notesRef,
-      snap => {
-        statusEl.textContent = "동기화됨";
-        statusEl.className = "online";
-        const items = [];
-        snap.forEach(child => {
-          items.push({ id: child.key, ...child.val() });
-        });
-        items.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
-        render(items);
-      },
-      err => {
-        statusEl.textContent = "연결 오류";
-        statusEl.className = "offline";
-        console.error(err);
-      });
-
-    // 저장
-    addBtn.onclick = async () => {
-      const text = input.value.trim();
-      if (!text) return;
-      input.value = ""; addBtn.disabled = true; autoGrow();
-      await push(notesRef, { text, updatedAt: serverTimestamp() });
-    };
-
-    input.addEventListener("input", () => {
-      addBtn.disabled = !input.value.trim();
-      autoGrow();
-    });
-    input.addEventListener("keydown", e => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "Enter") addBtn.click();
-    });
-    function autoGrow() {
-      input.style.height = "auto";
-      input.style.height = input.scrollHeight + "px";
-    }
-
-    function fmt(ts) {
-      if (!ts) return "";
-      const d = new Date(ts);
-      return d.toLocaleString("ko-KR", {
-        month: "short", day: "numeric", hour: "2-digit", minute: "2-digit"
-      });
-    }
-
-    function render(items) {
-      listEl.innerHTML = "";
-      if (!items.length) {
-        listEl.innerHTML = '<div class="empty">아직 메모가 없어요</div>';
-        return;
-      }
-      for (const data of items) {
-        const card = document.createElement("div");
-        card.className = "note";
-
-        const body = document.createElement("div");
-        body.className = "body";
-        body.textContent = data.text;
-
-        const meta = document.createElement("div");
-        meta.className = "meta";
-        const time = document.createElement("span");
-        time.className = "time";
-        time.textContent = fmt(data.updatedAt);
-        const btns = document.createElement("div");
-        btns.className = "btns";
-
-        const editBtn = document.createElement("button");
-        editBtn.textContent = "수정";
-        editBtn.onclick = () => {
-          const ta = document.createElement("textarea");
-          ta.className = "edit";
-          ta.value = data.text;
-          card.replaceChild(ta, card.firstChild);
-          ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length);
-          editBtn.textContent = "완료";
-          editBtn.onclick = async () => {
-            const t = ta.value.trim();
-            if (t && t !== data.text)
-              await update(ref(db, "notes/" + data.id), { text: t, updatedAt: serverTimestamp() });
-            else card.replaceChild(body, ta), resetEdit();
-          };
-          function resetEdit(){ editBtn.textContent = "수정"; }
-        };
-
-        const delBtn = document.createElement("button");
-        delBtn.textContent = "삭제";
-        delBtn.onclick = async () => {
-          if (confirm("이 메모를 삭제할까요?"))
-            await remove(ref(db, "notes/" + data.id));
-        };
-
-        btns.append(editBtn, delBtn);
-        meta.append(time, btns);
-        card.append(body, meta);
-        listEl.append(card);
-      }
-    }
+    subscribe();
   });
+}
+
+function setStatus(cls, text) {
+  const s = $("status");
+  s.className = cls;
+  $("stTx").textContent = text;
+}
+
+function subscribe() {
+  onValueFn(refFn(db, "stories"),
+    snap => {
+      const arr = [];
+      snap.forEach(c => arr.push({ id: c.key, ...c.val() }));
+      arr.sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || (b.createdAt || 0) - (a.createdAt || 0));
+      stories = arr;
+      renderStories();
+      if (curStory) {
+        const s = stories.find(x => x.id === curStory.id);
+        if (s) { curStory = s; $("ntTitle").textContent = (s.emoji || "📕") + "  " + s.name; }
+      }
+    },
+    err => { setStatus("offline", "연결 오류"); console.error(err); }
+  );
+
+  onValueFn(refFn(db, "notes"),
+    snap => {
+      setStatus("online", "동기화됨");
+      const map = {};
+      snap.forEach(c => {
+        const v = { id: c.key, ...c.val() };
+        (map[v.storyId || "_"] ||= []).push(v);
+      });
+      for (const k in map) map[k].sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+      notes = map;
+      renderStories();
+      if (curStory) renderNotes();
+      if (curNote) {
+        const list = notes[curNote.storyId] || [];
+        const n = list.find(x => x.id === curNote.id);
+        if (n && document.activeElement !== $("edBody") && document.activeElement !== $("edTitle")) {
+          curNote = n;
+          if ($("edBody").value !== (n.text || "")) $("edBody").value = n.text || "";
+          if ($("edTitle").value !== (n.title || "")) $("edTitle").value = n.title || "";
+          refreshEditorMeta();
+        }
+      }
+    },
+    err => { setStatus("offline", "연결 오류"); console.error(err); }
+  );
+}
+
+/* ── 이야기 목록 ── */
+function renderStories() {
+  const box = $("stList");
+  box.innerHTML = "";
+  const total = Object.values(notes).reduce((s, a) => s + a.length, 0);
+  $("stCount").textContent = stories.length ? stories.length + "개의 이야기 · 글 " + total + "편" : "";
+
+  if (!stories.length) {
+    box.innerHTML = '<div class="empty"><span class="big">📕</span>아직 이야기가 없어요<br>아래 + 를 눌러 첫 이야기를 시작해 보세요</div>';
+    return;
+  }
+  stories.forEach((s, idx) => {
+    const list = notes[s.id] || [];
+    const row = document.createElement("div");
+    row.className = "row";
+    row.draggable = true;
+    row.dataset.idx = idx;
+
+    const em = document.createElement("div"); em.className = "em"; em.textContent = s.emoji || "📕";
+    const mid = document.createElement("div"); mid.className = "mid";
+    const nm = document.createElement("div"); nm.className = "nm"; nm.textContent = s.name || "제목 없음";
+    const pv = document.createElement("div"); pv.className = "pv";
+    pv.textContent = list.length ? (list[0].title || (list[0].text || "").slice(0, 60) || "빈 글") : "글이 없어요";
+    mid.append(nm, pv);
+    const cnt = document.createElement("div"); cnt.className = "cnt"; cnt.textContent = list.length ? list.length + "편" : "";
+    const arw = document.createElement("div"); arw.className = "arw"; arw.textContent = "›";
+    row.append(em, mid, cnt, arw);
+
+    row.onclick = () => openStory(s);
+    row.oncontextmenu = e => { e.preventDefault(); storyMenu(s); };
+    row.ondragstart = e => { row.classList.add("dragging"); e.dataTransfer.setData("text/plain", idx); };
+    row.ondragend = () => row.classList.remove("dragging");
+    row.ondragover = e => { e.preventDefault(); row.classList.add("dragover"); };
+    row.ondragleave = () => row.classList.remove("dragover");
+    row.ondrop = e => {
+      e.preventDefault(); row.classList.remove("dragover");
+      const from = +e.dataTransfer.getData("text/plain");
+      if (from === idx) return;
+      const arr = [...stories];
+      const [moved] = arr.splice(from, 1);
+      arr.splice(idx, 0, moved);
+      const up = {};
+      arr.forEach((x, i) => { up["stories/" + x.id + "/order"] = i; });
+      updateFn(refFn(db), up);
+    };
+    box.appendChild(row);
+  });
+}
+
+function openStory(s) {
+  curStory = s;
+  $("ntTitle").textContent = (s.emoji || "📕") + "  " + s.name;
+  renderNotes();
+  go("scNotes");
+}
+
+/* ── 글 목록 ── */
+function renderNotes() {
+  const box = $("ntList");
+  box.innerHTML = "";
+  const list = notes[curStory.id] || [];
+  if (!list.length) {
+    box.innerHTML = '<div class="empty"><span class="big">📝</span>아직 글이 없어요<br>아래 + 를 눌러 첫 글을 써보세요</div>';
+    return;
+  }
+  for (const n of list) {
+    const row = document.createElement("div");
+    row.className = "row";
+    const mid = document.createElement("div"); mid.className = "mid";
+    const nm = document.createElement("div"); nm.className = "nm";
+    nm.textContent = n.title || firstLine(n.text) || "제목 없음";
+    const pv = document.createElement("div"); pv.className = "pv";
+    pv.textContent = fmtShort(n.updatedAt) + " · " + countChars(n.text) + "자";
+    mid.append(nm, pv);
+    const arw = document.createElement("div"); arw.className = "arw"; arw.textContent = "›";
+    row.append(mid, arw);
+    row.onclick = () => openNote(n);
+    row.oncontextmenu = e => { e.preventDefault(); noteMenu(n); };
+    box.appendChild(row);
+  }
+}
+function firstLine(t) { return String(t || "").split("\n").find(l => l.trim()) || ""; }
+
+/* ── 에디터 ── */
+function openNote(n) {
+  flushSave(true);
+  curNote = n;
+  $("edTitle").value = n.title || "";
+  $("edBody").value = n.text || "";
+  $("edCrumb").textContent = (curStory.emoji || "📕") + " " + curStory.name;
+  applyEditorStyle();
+  refreshEditorMeta();
+  go("scEdit");
+  requestAnimationFrame(() => { autoGrow($("edTitle")); autoGrow($("edBody")); });
+  if (!n.title && !n.text) setTimeout(() => $("edTitle").focus(), 320);
+}
+
+function refreshEditorMeta() {
+  $("edDate").textContent = fmtDate(curNote?.updatedAt);
+  $("edCount").textContent = countChars($("edBody").value) + "자";
+}
+
+function autoGrow(el) {
+  el.style.height = "auto";
+  el.style.height = el.scrollHeight + "px";
+}
+
+function queueSave(patch) {
+  if (!curNote) return;
+  pendingPatch = { ...(pendingPatch || {}), ...patch };
+  $("edSaved").textContent = "저장 중…";
+  $("edSaved").classList.remove("on");
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(flushSave, 900);
+}
+
+async function flushSave(immediate) {
+  clearTimeout(saveTimer);
+  if (!pendingPatch || !curNote) return;
+  const patch = { ...pendingPatch, updatedAt: stampFn() };
+  const id = curNote.id;
+  pendingPatch = null;
+  try {
+    await updateFn(refFn(db, "notes/" + id), patch);
+    if (!immediate) {
+      $("edSaved").textContent = "저장됨";
+      $("edSaved").classList.add("on");
+      setTimeout(() => { if ($("edSaved").textContent === "저장됨") $("edSaved").textContent = ""; }, 1600);
+    }
+  } catch (e) {
+    $("edSaved").textContent = "저장 실패";
+    console.error(e);
+  }
+}
+
+$("edTitle").addEventListener("input", e => {
+  autoGrow(e.target);
+  queueSave({ title: e.target.value });
+});
+$("edTitle").addEventListener("keydown", e => {
+  if (e.key !== "Enter") return;
+  e.preventDefault();
+  if (e.isComposing || e.keyCode === 229) return;  // 한글 조합 중이면 확정만 하고 넘어가지 않음
+  $("edBody").focus();
+});
+$("edBody").addEventListener("input", e => {
+  autoGrow(e.target);
+  $("edCount").textContent = countChars(e.target.value) + "자";
+  queueSave({ text: e.target.value });
+});
+addEventListener("beforeunload", () => flushSave(true));
+document.addEventListener("visibilitychange", () => { if (document.hidden) flushSave(true); });
+
+/* ── 생성 ── */
+function newStory() {
+  let emoji = EMOJIS[Math.floor(Math.random() * 8)];
+  modal(
+    '<h3>새 이야기</h3><input id="mName" placeholder="이야기 이름" maxlength="60" autocomplete="off">' +
+    '<div class="emgrid" id="mEm"></div>' +
+    '<div class="btns"><button class="g">취소</button><button class="p">만들기</button></div>',
+    m => {
+      const grid = m.querySelector("#mEm");
+      EMOJIS.forEach(e => {
+        const b = document.createElement("button");
+        b.textContent = e;
+        if (e === emoji) b.classList.add("on");
+        b.onclick = () => { emoji = e; grid.querySelectorAll("button").forEach(x => x.classList.remove("on")); b.classList.add("on"); };
+        grid.appendChild(b);
+      });
+      const inp = m.querySelector("#mName");
+      const btns = m.querySelectorAll(".btns button");
+      btns[0].onclick = closeMask;
+      const create = async () => {
+        const name = inp.value.trim() || "새 이야기";
+        closeMask();
+        await pushFn(refFn(db, "stories"), { name, emoji, order: stories.length, createdAt: stampFn() });
+      };
+      btns[1].onclick = create;
+      inp.onkeydown = e => { if (e.key === "Enter" && !e.isComposing && e.keyCode !== 229) create(); };
+      setTimeout(() => inp.focus(), 100);
+    }
+  );
+}
+
+async function newNote() {
+  const r = await pushFn(refFn(db, "notes"), {
+    storyId: curStory.id, title: "", text: "", createdAt: stampFn(), updatedAt: stampFn()
+  });
+  openNote({ id: r.key, storyId: curStory.id, title: "", text: "", updatedAt: Date.now() });
+}
+
+/* ── 메뉴 ── */
+function storyMenu(s) {
+  sheet([
+    { icon: "✏️", label: "이름·아이콘 수정", fn: () => editStory(s) },
+    { type: "div" },
+    { icon: "🗑", label: "이야기 삭제", danger: true, fn: () => delStory(s) },
+  ]);
+}
+
+function editStory(s) {
+  let emoji = s.emoji || "📕";
+  modal(
+    '<h3>이야기 수정</h3><input id="mName" maxlength="60" autocomplete="off">' +
+    '<div class="emgrid" id="mEm"></div>' +
+    '<div class="btns"><button class="g">취소</button><button class="p">저장</button></div>',
+    m => {
+      const grid = m.querySelector("#mEm");
+      EMOJIS.forEach(e => {
+        const b = document.createElement("button");
+        b.textContent = e;
+        if (e === emoji) b.classList.add("on");
+        b.onclick = () => { emoji = e; grid.querySelectorAll("button").forEach(x => x.classList.remove("on")); b.classList.add("on"); };
+        grid.appendChild(b);
+      });
+      const inp = m.querySelector("#mName");
+      inp.value = s.name || "";
+      const btns = m.querySelectorAll(".btns button");
+      btns[0].onclick = closeMask;
+      const save = async () => {
+        closeMask();
+        await updateFn(refFn(db, "stories/" + s.id), { name: inp.value.trim() || "제목 없음", emoji });
+      };
+      btns[1].onclick = save;
+      inp.onkeydown = e => { if (e.key === "Enter" && !e.isComposing && e.keyCode !== 229) save(); };
+      setTimeout(() => inp.focus(), 100);
+    }
+  );
+}
+
+function delStory(s) {
+  const list = notes[s.id] || [];
+  confirmBox(
+    "이야기를 삭제할까요?",
+    list.length ? "'" + s.name + "' 안의 글 " + list.length + "편도 함께 삭제돼요. 되돌릴 수 없어요." : "'" + s.name + "'을 삭제해요.",
+    "삭제",
+    async () => {
+      const up = { ["stories/" + s.id]: null };
+      list.forEach(n => { up["notes/" + n.id] = null; });
+      await updateFn(refFn(db), up);
+      if (curStory && curStory.id === s.id) { curStory = null; back(); }
+      toast("삭제했어요");
+    },
+    true
+  );
+}
+
+function noteMenu(n) {
+  sheet([
+    { icon: "📋", label: "글 복제", fn: () => dupNote(n) },
+    { icon: "📤", label: "텍스트 파일로 내보내기", fn: () => exportNote(n) },
+    { icon: "📁", label: "다른 이야기로 이동", fn: () => moveNote(n) },
+    { type: "div" },
+    { icon: "🗑", label: "글 삭제", danger: true, fn: () => delNote(n) },
+  ]);
+}
+
+async function dupNote(n) {
+  await pushFn(refFn(db, "notes"), {
+    storyId: n.storyId, title: (n.title || "") + " 사본", text: n.text || "",
+    createdAt: stampFn(), updatedAt: stampFn()
+  });
+  toast("복제했어요");
+}
+
+function exportNote(n) {
+  const name = (n.title || firstLine(n.text) || "메모").replace(/[\\/:*?"<>|]/g, "_").slice(0, 50);
+  const blob = new Blob([(n.title ? n.title + "\n\n" : "") + (n.text || "")], { type: "text/plain;charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = name + ".txt";
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+function moveNote(n) {
+  const items = stories.filter(s => s.id !== n.storyId).map(s => ({
+    icon: s.emoji || "📕", label: s.name,
+    fn: async () => { await updateFn(refFn(db, "notes/" + n.id), { storyId: s.id }); toast("옮겼어요"); if (curNote && curNote.id === n.id) back(); }
+  }));
+  if (!items.length) { toast("옮길 다른 이야기가 없어요"); return; }
+  sheet([{ type: "head", label: "어디로 옮길까요?" }, ...items]);
+}
+
+function delNote(n) {
+  confirmBox("글을 삭제할까요?", (n.title || firstLine(n.text) || "빈 글").slice(0, 40), "삭제", async () => {
+    lastDeleted = { ...n };
+    await removeFn(refFn(db, "notes/" + n.id));
+    if (curNote && curNote.id === n.id) { curNote = null; back(); }
+    toast("삭제했어요", "실행 취소", async () => {
+      const d = lastDeleted; if (!d) return;
+      await pushFn(refFn(db, "notes"), {
+        storyId: d.storyId, title: d.title || "", text: d.text || "",
+        createdAt: stampFn(), updatedAt: stampFn()
+      });
+      lastDeleted = null;
+    });
+  }, true);
+}
+
+function appMenu() {
+  sheet([
+    { type: "head", label: "테마" },
+    { icon: "🌗", label: "기기 설정 따라가기", checked: prefs.theme === "auto", fn: () => { prefs.theme = "auto"; savePrefs(); applyTheme(); } },
+    { icon: "☀️", label: "라이트", checked: prefs.theme === "light", fn: () => { prefs.theme = "light"; savePrefs(); applyTheme(); } },
+    { icon: "🌙", label: "다크", checked: prefs.theme === "dark", fn: () => { prefs.theme = "dark"; savePrefs(); applyTheme(); } },
+    { type: "div" },
+    { type: "head", label: "글꼴" },
+    ...FONTS.map(f => ({ icon: "🅰", label: f.label, checked: prefs.font === f.id, fn: () => { prefs.font = f.id; savePrefs(); applyEditorStyle(); } })),
+    { icon: "🔠", label: "글자 크기 (" + prefs.size + "px)", fn: sizeMenu },
+    { type: "div" },
+    { icon: "📦", label: "전체 백업 내보내기", fn: exportAll },
+  ]);
+}
+
+function sizeMenu() {
+  sheet([
+    { type: "head", label: "글자 크기" },
+    ...SIZES.map(s => ({ icon: "🔠", label: s + "px", checked: prefs.size === s, fn: () => { prefs.size = s; savePrefs(); applyEditorStyle(); } })),
+  ]);
+}
+
+function exportAll() {
+  const out = { exportedAt: new Date().toISOString(), stories, notes };
+  const blob = new Blob([JSON.stringify(out, null, 2)], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  const d = new Date();
+  a.download = "메모장-백업-" + d.getFullYear() + String(d.getMonth() + 1).padStart(2, "0") + String(d.getDate()).padStart(2, "0") + ".json";
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+/* ── 검색 ── */
+function openSearch() {
+  $("srchIn").value = "";
+  $("srList").innerHTML = '<div class="empty">글 제목과 내용을 검색해요</div>';
+  go("scSearch");
+  setTimeout(() => $("srchIn").focus(), 320);
+}
+
+$("srchIn").addEventListener("input", e => {
+  const q = e.target.value.trim().toLowerCase();
+  const box = $("srList");
+  box.innerHTML = "";
+  if (!q) { box.innerHTML = '<div class="empty">글 제목과 내용을 검색해요</div>'; return; }
+  const hits = [];
+  for (const s of stories) {
+    for (const n of (notes[s.id] || [])) {
+      const hay = ((n.title || "") + "\n" + (n.text || "")).toLowerCase();
+      const i = hay.indexOf(q);
+      if (i >= 0) hits.push({ n, s, i, hay });
+    }
+  }
+  if (!hits.length) { box.innerHTML = '<div class="empty">검색 결과가 없어요</div>'; return; }
+  hits.slice(0, 60).forEach(h => {
+    const row = document.createElement("div");
+    row.className = "row";
+    const em = document.createElement("div"); em.className = "em"; em.textContent = h.s.emoji || "📕";
+    const mid = document.createElement("div"); mid.className = "mid";
+    const nm = document.createElement("div"); nm.className = "nm";
+    nm.textContent = h.n.title || firstLine(h.n.text) || "제목 없음";
+    const pv = document.createElement("div"); pv.className = "pv";
+    const raw = (h.n.title || "") + "\n" + (h.n.text || "");
+    pv.textContent = "…" + raw.slice(Math.max(0, h.i - 20), h.i + 60).replace(/\n/g, " ") + "…";
+    mid.append(nm, pv);
+    row.append(em, mid);
+    row.onclick = () => { curStory = h.s; $("ntTitle").textContent = (h.s.emoji || "📕") + "  " + h.s.name; renderNotes(); openNote(h.n); };
+    box.appendChild(row);
+  });
+});
+
+/* ── 버튼 배선 ── */
+$("fabStory").onclick = newStory;
+$("fabNote").onclick = newNote;
+$("btnBack1").onclick = () => history.back();
+$("btnBack2").onclick = () => history.back();
+$("btnBack3").onclick = () => history.back();
+$("btnMenu").onclick = appMenu;
+$("btnSearch").onclick = openSearch;
+$("btnStoryMenu").onclick = () => curStory && storyMenu(curStory);
+$("btnNoteMenu").onclick = () => curNote && noteMenu(curNote);
+
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape") { if (document.querySelector(".mask")) closeMask(); else if (stack.length > 1) history.back(); }
+  if ((e.metaKey || e.ctrlKey) && e.key === "s") { e.preventDefault(); flushSave(); }
+  if ((e.metaKey || e.ctrlKey) && e.key === "k") { e.preventDefault(); openSearch(); }
+});
+
+applyEditorStyle();
+
+/* ── PWA ── */
+if ("serviceWorker" in navigator && location.protocol !== "file:") {
+  addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
 }
 </script>
 </body>
